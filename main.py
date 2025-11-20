@@ -1,8 +1,13 @@
 import os
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from typing import List, Optional
 
-app = FastAPI()
+from schemas import Inquiry
+from database import create_document
+
+app = FastAPI(title="Consulting Site API", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -12,13 +17,102 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 @app.get("/")
 def read_root():
-    return {"message": "Hello from FastAPI Backend!"}
+    return {"message": "Consulting website backend is running"}
+
 
 @app.get("/api/hello")
 def hello():
     return {"message": "Hello from the backend API!"}
+
+
+class Service(BaseModel):
+    id: str
+    title: str
+    audience: List[str]
+    description: str
+    highlights: List[str]
+
+
+@app.get("/api/services", response_model=List[Service])
+def get_services():
+    return [
+        Service(
+            id="architecture",
+            title="Solution & Systems Architecture",
+            audience=["Technical Architects", "CTOs", "Founders"],
+            description="End-to-end architecture for scalable, secure, and cost-efficient systems.",
+            highlights=[
+                "Cloud-native blueprints (AWS/GCP/Azure)",
+                "Event-driven and microservices",
+                "Zero-downtime migration strategies",
+                "Security, observability, and compliance",
+            ],
+        ),
+        Service(
+            id="delivery",
+            title="Delivery Acceleration",
+            audience=["Developers", "Engineering Managers"],
+            description="Unblock teams with hands-on enablement, tooling, and agile delivery.",
+            highlights=[
+                "CI/CD pipelines and platform engineering",
+                "DevEx improvements and code quality",
+                "Automated testing and release strategies",
+                "Team coaching and playbooks",
+            ],
+        ),
+        Service(
+            id="advisory",
+            title="Technology Advisory",
+            audience=["Business Owners", "Product Leaders"],
+            description="Make confident decisions with research, audits, and roadmaps.",
+            highlights=[
+                "Architecture and cost audits",
+                "Build vs buy assessments",
+                "Vendor selection and RFP support",
+                "Executive-ready recommendations",
+            ],
+        ),
+        Service(
+            id="ai",
+            title="AI Enablement",
+            audience=["Consultants", "Enterprises"],
+            description="Identify high-ROI AI use cases and safely integrate LLMs.",
+            highlights=[
+                "Use-case discovery and prioritization",
+                "Prototype -> pilot -> production",
+                "Evaluation, guardrails, and governance",
+                "Change management and training",
+            ],
+        ),
+    ]
+
+
+class Highlight(BaseModel):
+    label: str
+    value: str
+
+
+@app.get("/api/highlights", response_model=List[Highlight])
+def get_highlights():
+    return [
+        Highlight(label="Average ROI", value="3-10x"),
+        Highlight(label="Avg. Time-to-Value", value="< 6 weeks"),
+        Highlight(label="Client NPS", value="72"),
+        Highlight(label="Engagements Delivered", value="> 120"),
+    ]
+
+
+@app.post("/api/inquiries")
+def create_inquiry(inquiry: Inquiry):
+    try:
+        inserted_id = create_document("inquiry", inquiry)
+        return {"status": "ok", "id": inserted_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.get("/test")
 def test_database():
